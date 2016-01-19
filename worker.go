@@ -42,31 +42,9 @@ func (w Worker) Start() {
 				// we have received a work request.
 				jobs = append(jobs, job)
 
-				if job.Flush {
-					var jobBatch []Job
-					for i := 0; i < len(jobs); i++ {
-						job := Job{}
-						job, jobs = jobs[len(jobs)-1], jobs[:len(jobs)-1]
-						if !job.Flush {
-							jobBatch = append(jobBatch, job)
-						}
-					}
-					go w.SendBatch(jobBatch)
-					jobBatch = []Job{}
-				}
-
-				if len(jobs) > w.Config.SendBuffer {
-					// pop off the jobs
-					var jobBatch []Job
-					for i := 0; i < w.Config.SendBuffer; i++ {
-						job := Job{}
-						job, jobs = jobs[len(jobs)-1], jobs[:len(jobs)-1]
-						if !job.Flush {
-							jobBatch = append(jobBatch, job)
-						}
-					}
-					go w.SendBatch(jobBatch)
-					jobBatch = []Job{}
+				if len(jobs) > w.Config.SendBuffer || job.Flush {
+					go w.SendBatch(jobs)
+					jobs = []Job{}
 				}
 			case <-w.quit:
 				return
@@ -76,10 +54,12 @@ func (w Worker) Start() {
 }
 
 func (w Worker) SendBatch(jobs []Job) {
-	fmt.Println("Sending Batch")
+
 	var events []string
-	for x := range jobs {
-		events = append(events, jobs[x].String())
+	for _, job := range jobs {
+		if !job.Flush {
+			events = append(events, job.String())
+		}
 	}
 	requestStr := "[" + strings.Join(events, ",") + "]"
 
