@@ -23,7 +23,7 @@ type Tunnel struct {
 	StripParams     []string
 }
 
-func NewTunnel(account string, apiKey string, eventName string, send int, sendBuff int, stripParams []string) *Tunnel {
+func NewTunnel(account string, apiKey string) *Tunnel {
 
 	maxWorker, err := strconv.Atoi(os.Getenv("MAX_WORKERS"))
 	if err != nil {
@@ -36,16 +36,15 @@ func NewTunnel(account string, apiKey string, eventName string, send int, sendBu
 
 	url := strings.Join([]string{"https://insights-collector.newrelic.com/v1/accounts/", account, "/events"}, "")
 	relic := &Tunnel{
-		SendInterval:    send,
-		SendBuffer:      sendBuff,
+		SendInterval:    10,
+		SendBuffer:      5,
 		InsightsAPI:     apiKey,
 		InsightsAccount: account,
 		InsightsURL:     url,
 		Silent:          false,
-		InsightsEvent:   eventName,
+		InsightsEvent:   "Transaction",
 		MaxWorkers:      maxWorker,
 		MaxQueue:        maxQueue,
-		StripParams:     stripParams,
 	}
 
 	JobQueue = make(chan Job, relic.MaxQueue)
