@@ -1,19 +1,39 @@
 package tunnelRelic
 
+import (
+	"time"
+)
+
 type Dispatcher struct {
-	WorkerPool chan chan Job // A pool of workers channels that are registered with the dispatcher
-	Config     *Tunnel       // Configuration
+	WorkerPool      chan chan Job // A pool of workers channels that are registered with the dispatcher
+	Config          *Tunnel       // Configuration
+	WorkerInstances []Worker
 }
 
 func (relic *Tunnel) NewDispatcher(numWorkers int) *Dispatcher {
 	pool := make(chan chan Job, numWorkers)
-	return &Dispatcher{WorkerPool: pool, Config: relic}
+	d := Dispatcher{WorkerPool: pool, Config: relic}
+	go d.PeriodicallyFlushWorkers()
+	return &d
+}
+
+func (d *Dispatcher) PeriodicallyFlushWorkers() {
+	for true {
+		time.Sleep(time.Second * time.Duration(int64(d.Config.SendInterval)))
+		go func() {
+			for _, w := range d.WorkerInstances {
+				jobChannel := <-w.WorkerPool
+				jobChannel <- Job{Flush: true}
+			}
+		}()
+	}
 }
 
 // Start MaxWorkers number of Workers
 func (d *Dispatcher) Run() {
 	for i := 0; i < d.Config.MaxWorkers; i++ {
 		worker := NewWorker(d.WorkerPool, d.Config)
+		d.WorkerInstances = append(d.WorkerInstances, worker)
 		worker.Start()
 	}
 	go d.dispatch()

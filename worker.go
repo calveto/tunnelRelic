@@ -30,14 +30,30 @@ func NewWorker(workerPool chan chan Job, config *Tunnel) Worker {
 func (w Worker) Start() {
 	go func() {
 		jobs := []Job{}
+
 		for {
+
 			// register the current worker into the worker queue
 			w.WorkerPool <- w.JobChannel
 
 			select {
 			case job := <-w.JobChannel:
+
 				// we have received a work request.
 				jobs = append(jobs, job)
+
+				if job.Flush {
+					var jobBatch []Job
+					for i := 0; i < len(jobs); i++ {
+						job := Job{}
+						job, jobs = jobs[len(jobs)-1], jobs[:len(jobs)-1]
+						if !job.Flush {
+							jobBatch = append(jobBatch, job)
+						}
+					}
+					go w.SendBatch(jobBatch)
+					jobBatch = []Job{}
+				}
 
 				if len(jobs) > w.Config.SendBuffer {
 					// pop off the jobs
@@ -45,7 +61,9 @@ func (w Worker) Start() {
 					for i := 0; i < w.Config.SendBuffer; i++ {
 						job := Job{}
 						job, jobs = jobs[len(jobs)-1], jobs[:len(jobs)-1]
-						jobBatch = append(jobBatch, job)
+						if !job.Flush {
+							jobBatch = append(jobBatch, job)
+						}
 					}
 					go w.SendBatch(jobBatch)
 					jobBatch = []Job{}

@@ -8,6 +8,7 @@ import (
 type Job struct {
 	Event     map[string]interface{}
 	EventType string
+	Flush     bool
 }
 
 func (j Job) String() string {
