@@ -1,10 +1,10 @@
 package tunnelRelic
 
 import (
-	"fmt"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // A buffered channel that we can send work request on.
@@ -33,7 +33,7 @@ func NewTunnel(account string, apiKey string, eventName string, send int, sendBu
 		maxQueue = 100
 	}
 
-	url := strings.Join([]string{"https://nsights-collector.newrelic.com/v1/accounts/", account, "/events"}, "")
+	url := strings.Join([]string{"https://insights-collector.newrelic.com/v1/accounts/", account, "/events"}, "")
 	relic := &Tunnel{
 		SendInterval:    send,
 		SendBuffer:      sendBuff,
@@ -69,8 +69,9 @@ func NewTransaction() map[string]interface{} {
 
 func (relic *Tunnel) RegisterEvent(event map[string]interface{}) {
 
+	event["timestamp"] = time.Now().Unix()
+
 	// Create a Job
-	fmt.Println("Greating job")
 	work := Job{Event: event, EventType: relic.InsightsEvent}
 
 	// Push the work on the queue
