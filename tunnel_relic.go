@@ -20,9 +20,10 @@ type Tunnel struct {
 	Silent          bool
 	MaxQueue        int
 	MaxWorkers      int
+	StripParams     []string
 }
 
-func NewTunnel(account string, apiKey string, eventName string, send int, sendBuff int) *Tunnel {
+func NewTunnel(account string, apiKey string, eventName string, send int, sendBuff int, stripParams []string) *Tunnel {
 
 	maxWorker, err := strconv.Atoi(os.Getenv("MAX_WORKERS"))
 	if err != nil {
@@ -44,6 +45,7 @@ func NewTunnel(account string, apiKey string, eventName string, send int, sendBu
 		InsightsEvent:   eventName,
 		MaxWorkers:      maxWorker,
 		MaxQueue:        maxQueue,
+		StripParams:     stripParams,
 	}
 
 	JobQueue = make(chan Job, relic.MaxQueue)
@@ -69,6 +71,9 @@ func NewTransaction() map[string]interface{} {
 
 func (relic *Tunnel) RegisterEvent(event map[string]interface{}) {
 
+	for _, key := range relic.StripParams {
+		delete(event, key)
+	}
 	event["timestamp"] = time.Now().Unix()
 
 	// Create a Job
