@@ -7,25 +7,35 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 )
 
 // A buffered channel that we can send work request on.
-var JobQueue = make(chan Job, 100)
+var JobQueue chan Job
 
 type Tunnel struct {
 	SendInterval    int
 	SendBuffer      int
-	MaxWorkers      int
 	InsightsAPI     string
 	InsightsAccount string
 	InsightsEvent   string
 	InsightsURL     string
 	Silent          bool
-	SendQueue       []string
+	MaxQueue        int
+	MaxWorkers      int
 }
 
-func NewTunnel(account string, apiKey string, eventName string, send int, sendBuff int, maxWorkers int) *Tunnel {
+func NewTunnel(account string, apiKey string, eventName string, send int, sendBuff int) *Tunnel {
+
+	maxWorker, err := strconv.Atoi(os.Getenv("MAX_WORKERS"))
+	if err != nil {
+		maxWorker = 10
+	}
+	maxQueue, err := strconv.Atoi(os.Getenv("MAX_QUEUE"))
+	if err != nil {
+		maxQueue = 100
+	}
 
 	url := strings.Join([]string{"https://insights-collector.newrelic.com/v1/accounts/", account, "/events"}, "")
 	relic := &Tunnel{
@@ -36,10 +46,12 @@ func NewTunnel(account string, apiKey string, eventName string, send int, sendBu
 		InsightsURL:     url,
 		Silent:          false,
 		InsightsEvent:   eventName,
-		MaxWorkers:      maxWorkers,
+		MaxWorkers:      maxWorker,
+		MaxQueue:        maxQueue,
 	}
 
-	dispatcher := relic.NewDispatcher(maxWorkers)
+	JobQueue = make(chan Job, relic.MaxQueue)
+	dispatcher := relic.NewDispatcher(relic.MaxWorkers)
 	dispatcher.Run()
 
 	return relic
