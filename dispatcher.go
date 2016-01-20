@@ -20,6 +20,7 @@ func (relic *Tunnel) NewDispatcher(numWorkers int) *Dispatcher {
 func (d *Dispatcher) PeriodicallyFlushWorkers() {
 	for true {
 		time.Sleep(time.Second * time.Duration(int64(d.Config.SendInterval)))
+		Log.Debug("Flushing partial batches")
 		go func() {
 			for _, w := range d.WorkerInstances {
 				jobChannel := <-w.WorkerPool

@@ -9,6 +9,7 @@ import (
 
 // A buffered channel that we can send work request on.
 var JobQueue chan Job
+var Log Logger
 
 type Tunnel struct {
 	SendInterval    int
@@ -21,6 +22,7 @@ type Tunnel struct {
 	MaxQueue        int
 	MaxWorkers      int
 	StripParams     []string
+	Log             Logger
 }
 
 func NewTunnel(account string, apiKey string) *Tunnel {
@@ -45,14 +47,16 @@ func NewTunnel(account string, apiKey string) *Tunnel {
 		InsightsEvent:   "Transaction",
 		MaxWorkers:      maxWorker,
 		MaxQueue:        maxQueue,
+		Log:             NewStderrLogger(),
 	}
 
 	JobQueue = make(chan Job, relic.MaxQueue)
+	//relic.Log.EnableDebug()
+	Log = relic.Log
 	dispatcher := relic.NewDispatcher(relic.MaxWorkers)
+	Log.Info("Starting Dispatcher")
 	dispatcher.Run()
-
 	return relic
-
 }
 
 func NewTransaction() map[string]interface{} {
@@ -77,6 +81,7 @@ func (relic *Tunnel) RegisterEvent(event map[string]interface{}) {
 
 	// Create a Job
 	work := Job{Event: event, EventType: relic.InsightsEvent}
+	Log.Debug("Adding Job: ", work.String())
 
 	// Push the work on the queue
 	JobQueue <- work

@@ -2,7 +2,6 @@ package tunnelRelic
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -28,6 +27,7 @@ func NewWorker(workerPool chan chan Job, config *Tunnel) Worker {
 
 // Start method starts the run loop for the worker.
 func (w Worker) Start() {
+	Log.Debug("Starting Worker")
 	go func() {
 		jobs := []Job{}
 
@@ -61,14 +61,19 @@ func (w Worker) SendBatch(jobs []Job) {
 			events = append(events, job.String())
 		}
 	}
+
+	if len(events) == 0 {
+		return
+	}
+
 	requestStr := "[" + strings.Join(events, ",") + "]"
 
 	var eventJson = []byte(requestStr)
-	fmt.Printf("\nEvent Json: \n\n%s\n\n", eventJson)
+	Log.Debugf("EventJson: \n %s", eventJson)
 
 	req, err := http.NewRequest("POST", w.Config.InsightsURL, bytes.NewBuffer(eventJson))
 	if err != nil {
-		fmt.Println(err.Error())
+		Log.Error(err.Error())
 		return
 	}
 	req.Header.Set("X-Insert-Key", w.Config.InsightsAPI)
@@ -78,13 +83,13 @@ func (w Worker) SendBatch(jobs []Job) {
 	resp, err := client.Do(req)
 
 	if err != nil {
-		fmt.Println(err.Error())
+		Log.Error(err.Error())
 		return
 	}
 
 	if resp.StatusCode >= 500 {
 		// Re-queue failed post
-		// Consider adding exponential back off on these retries.
+		Log.Warn("Re-queueing jobs")
 		for _, job := range jobs {
 			JobQueue <- job
 		}
@@ -94,12 +99,12 @@ func (w Worker) SendBatch(jobs []Job) {
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println("tunnelRelic: HTTP Status Code: ", resp.Status)
-		fmt.Println("tunnelRelic: Error response from New Relic: ", string(body))
+		Log.Error("HTTP Status Code: ", resp.Status)
+		Log.Error("Error response from New Relic: ", string(body))
 		return
 	}
 	if w.Config.Silent != true {
-		fmt.Println("tunnelRelic: Sending queued request to New Relic. Response: ", string(body))
+		Log.Info("Sending queued request to New Relic. Response: ", string(body))
 	}
 }
 
