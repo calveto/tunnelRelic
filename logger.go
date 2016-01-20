@@ -1,4 +1,4 @@
-package tunnelRelic
+package insightsRelic
 
 import (
 	"log"
@@ -24,7 +24,7 @@ type StderrLogger struct {
 
 func NewStderrLogger() *StderrLogger {
 	l := new(StderrLogger)
-	l.log = log.New(os.Stderr, "tunnelRelic: ", 0)
+	l.log = log.New(os.Stderr, "insightsRelic: ", 0)
 	return l
 }
 

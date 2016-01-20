@@ -1,4 +1,4 @@
-package tunnelRelic
+package insightsRelic
 
 import (
 	"os"
@@ -11,21 +11,20 @@ import (
 var JobQueue chan Job
 var Log Logger
 
-type Tunnel struct {
+type Insights struct {
 	SendInterval    int
 	SendBuffer      int
 	InsightsAPI     string
 	InsightsAccount string
 	InsightsEvent   string
 	InsightsURL     string
-	Silent          bool
 	MaxQueue        int
 	MaxWorkers      int
 	StripParams     []string
 	Log             Logger
 }
 
-func NewTunnel(account string, apiKey string) *Tunnel {
+func NewInsights(account string, apiKey string) *Insights {
 
 	maxWorker, err := strconv.Atoi(os.Getenv("MAX_WORKERS"))
 	if err != nil {
@@ -37,26 +36,25 @@ func NewTunnel(account string, apiKey string) *Tunnel {
 	}
 
 	url := strings.Join([]string{"https://insights-collector.newrelic.com/v1/accounts/", account, "/events"}, "")
-	relic := &Tunnel{
+	i := &Insights{
 		SendInterval:    10,
 		SendBuffer:      5,
 		InsightsAPI:     apiKey,
 		InsightsAccount: account,
 		InsightsURL:     url,
-		Silent:          false,
 		InsightsEvent:   "Transaction",
 		MaxWorkers:      maxWorker,
 		MaxQueue:        maxQueue,
 		Log:             NewStderrLogger(),
 	}
 
-	JobQueue = make(chan Job, relic.MaxQueue)
-	//relic.Log.EnableDebug()
-	Log = relic.Log
-	dispatcher := relic.NewDispatcher(relic.MaxWorkers)
+	JobQueue = make(chan Job, i.MaxQueue)
+	i.Log.EnableDebug()
+	Log = i.Log
+	dispatcher := i.NewDispatcher(i.MaxWorkers)
 	Log.Info("Starting Dispatcher")
 	dispatcher.Run()
-	return relic
+	return i
 }
 
 func NewTransaction() map[string]interface{} {
@@ -72,15 +70,15 @@ func NewTransaction() map[string]interface{} {
 	return newRelicTransaction
 }
 
-func (relic *Tunnel) RegisterEvent(event map[string]interface{}) {
+func (i *Insights) RegisterEvent(event map[string]interface{}) {
 
-	for _, key := range relic.StripParams {
+	for _, key := range i.StripParams {
 		delete(event, key)
 	}
 	event["timestamp"] = time.Now().Unix()
 
 	// Create a Job
-	work := Job{Event: event, EventType: relic.InsightsEvent}
+	work := Job{Event: event, EventType: i.InsightsEvent}
 	Log.Debug("Adding Job: ", work.String())
 
 	// Push the work on the queue

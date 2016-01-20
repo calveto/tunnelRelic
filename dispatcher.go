@@ -1,4 +1,4 @@
-package tunnelRelic
+package insightsRelic
 
 import (
 	"time"
@@ -6,20 +6,20 @@ import (
 
 type Dispatcher struct {
 	WorkerPool      chan chan Job // A pool of workers channels that are registered with the dispatcher
-	Config          *Tunnel       // Configuration
+	Insights        *Insights
 	WorkerInstances []Worker
 }
 
-func (relic *Tunnel) NewDispatcher(numWorkers int) *Dispatcher {
+func (i *Insights) NewDispatcher(numWorkers int) *Dispatcher {
 	pool := make(chan chan Job, numWorkers)
-	d := Dispatcher{WorkerPool: pool, Config: relic}
+	d := Dispatcher{WorkerPool: pool, Insights: i}
 	go d.PeriodicallyFlushWorkers()
 	return &d
 }
 
 func (d *Dispatcher) PeriodicallyFlushWorkers() {
 	for true {
-		time.Sleep(time.Second * time.Duration(int64(d.Config.SendInterval)))
+		time.Sleep(time.Second * time.Duration(int64(d.Insights.SendInterval)))
 		Log.Debug("Flushing partial batches")
 		go func() {
 			for _, w := range d.WorkerInstances {
@@ -32,8 +32,8 @@ func (d *Dispatcher) PeriodicallyFlushWorkers() {
 
 // Start MaxWorkers number of Workers
 func (d *Dispatcher) Run() {
-	for i := 0; i < d.Config.MaxWorkers; i++ {
-		worker := NewWorker(d.WorkerPool, d.Config)
+	for i := 0; i < d.Insights.MaxWorkers; i++ {
+		worker := NewWorker(d.WorkerPool, d.Insights)
 		d.WorkerInstances = append(d.WorkerInstances, worker)
 		worker.Start()
 	}

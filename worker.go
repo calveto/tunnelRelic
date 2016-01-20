@@ -1,4 +1,4 @@
-package tunnelRelic
+package insightsRelic
 
 import (
 	"bytes"
@@ -12,16 +12,16 @@ type Worker struct {
 	WorkerPool chan chan Job
 	JobChannel chan Job
 	quit       chan bool
-	Config     *Tunnel
+	Insights   *Insights
 }
 
-func NewWorker(workerPool chan chan Job, config *Tunnel) Worker {
+func NewWorker(workerPool chan chan Job, insights *Insights) Worker {
 	w := Worker{
 		WorkerPool: workerPool,
 		JobChannel: make(chan Job),
 		quit:       make(chan bool)}
 
-	w.Config = config
+	w.Insights = insights
 	return w
 }
 
@@ -42,7 +42,7 @@ func (w Worker) Start() {
 				// we have received a work request.
 				jobs = append(jobs, job)
 
-				if len(jobs) > w.Config.SendBuffer || job.Flush {
+				if len(jobs) > w.Insights.SendBuffer || job.Flush {
 					go w.SendBatch(jobs)
 					jobs = []Job{}
 				}
@@ -71,12 +71,12 @@ func (w Worker) SendBatch(jobs []Job) {
 	var eventJson = []byte(requestStr)
 	Log.Debugf("EventJson: \n %s", eventJson)
 
-	req, err := http.NewRequest("POST", w.Config.InsightsURL, bytes.NewBuffer(eventJson))
+	req, err := http.NewRequest("POST", w.Insights.InsightsURL, bytes.NewBuffer(eventJson))
 	if err != nil {
 		Log.Error(err.Error())
 		return
 	}
-	req.Header.Set("X-Insert-Key", w.Config.InsightsAPI)
+	req.Header.Set("X-Insert-Key", w.Insights.InsightsAPI)
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{}
@@ -103,9 +103,7 @@ func (w Worker) SendBatch(jobs []Job) {
 		Log.Error("Error response from New Relic: ", string(body))
 		return
 	}
-	if w.Config.Silent != true {
-		Log.Info("Sending queued request to New Relic. Response: ", string(body))
-	}
+	Log.Debug("Sending queued request to New Relic. Response: ", string(body))
 }
 
 // Stop the worker
